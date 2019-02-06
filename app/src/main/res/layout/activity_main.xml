@@ -2,6 +2,7 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/colorPrimaryDark"
@@ -58,6 +59,7 @@
         android:layout_height="wrap_content">
 
         <Button
+            android:id="@+id/btnSignIn"
             android:text="INICIAR"
             android:textColor="@android:color/white"
             android:background="@drawable/btn_sign_in_background"
@@ -67,6 +69,7 @@
             android:layout_height="wrap_content" />
 
         <Button
+            android:id="@+id/btnSignUp"
             android:text="REGISTRARSE"
             android:textColor="@color/btnRegister"
             android:background="@drawable/btn_register_background"
