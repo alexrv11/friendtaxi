@@ -8,4 +8,7 @@
     <color name="btnSignIn">#0d1180</color>
     <color name="btnRegister">#007491</color>
 
+    <color name="baseReleaseColor">#212121</color>
+    <color name="basePressColor">#FAFAFA</color>
+    <color name="ballReleaseColor">#9E9E9E</color>
 </resources>

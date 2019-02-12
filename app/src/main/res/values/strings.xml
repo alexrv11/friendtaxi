@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">friend.taxi</string>
+    <string name="title_activity_welcome">Welcome</string>
+    <string name="title_activity_taxi_map">Map</string>
 </resources>
