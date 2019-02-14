@@ -4,17 +4,25 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
+import android.os.Handler;
+import android.os.SystemClock;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.animation.Interpolator;
+import android.view.animation.LinearInterpolator;
 import android.widget.CompoundButton;
 import android.widget.Switch;
+import android.widget.Toast;
 
 import com.firebase.geofire.GeoFire;
+import com.firebase.geofire.GeoLocation;
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationRequest;
@@ -23,11 +31,16 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
@@ -85,14 +98,69 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
                 } else {
                     TaxiMapActivity.this.isOnline = isOnline;
                     stopLocationUpdates();
-                    lastMarker.remove();
+                    if(lastMarker != null)
+                        lastMarker.remove();
                     Snackbar.make(mapFragment.getView(), "You are Offline", Snackbar.LENGTH_SHORT).show();
                 }
             }
         });
 
+        drivers = FirebaseDatabase.getInstance().getReference("Drivers");
+        geofire = new GeoFire(drivers);
+        setUpLocation();
 
+    }
 
+    private void setUpLocation() {
+        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
+            ActivityCompat.requestPermissions(this, new String[]{
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+            }, MY_PERMISSION_REQUEST_CODE);
+        } else {
+            if(checkPlayPermission()){
+                buildGoogleApiclient();
+                createLocationRequest();
+                if(isOnline){
+                    displayLocation();
+                }
+            }
+        }
+    }
+
+    private void createLocationRequest() {
+        locationRequest = new LocationRequest();
+        locationRequest.setInterval(UPDATE_INTERVAL);
+        locationRequest.setInterval(FATEST_INTERVAL);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setSmallestDisplacement(DISPLACEMENT);
+
+    }
+
+    private void buildGoogleApiclient() {
+        googleApiClient = new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build();
+        googleApiClient.connect();
+    }
+
+    private boolean checkPlayPermission() {
+        int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+        if(resultCode != ConnectionResult.SUCCESS) {
+            if(GooglePlayServicesUtil.isUserRecoverableError(resultCode)) {
+                GooglePlayServicesUtil.getErrorDialog(resultCode, this, PLAY_SERVICE_RES_REQUEST).show();
+            } else {
+                Toast.makeText(this, "The devise is not supported", Toast.LENGTH_SHORT).show();
+                finish();
+            }
+            return false;
+        }
+
+        return true;
     }
 
     private void stopLocationUpdates() {
@@ -119,6 +187,7 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
                         // Got last known location. In some rare situations, this can be null.
                         if (location != null && isOnline) {
                             // Logic to handle location object
+                            Snackbar.make(mapFragment.getView(), "new location", Snackbar.LENGTH_SHORT).show();
                             lastLocation = location;
                         }
                     }
@@ -126,7 +195,60 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
 
     }
 
-    private void displayLocation(){
+    private void displayLocation() {
+        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
+        {
+            return;
+        }
+
+        if(lastLocation != null) {
+            final double latitude = lastLocation.getLatitude();
+            final double longitude = lastLocation.getLongitude();
+
+            geofire.setLocation(FirebaseAuth.getInstance().getCurrentUser().getUid(), new GeoLocation(latitude, longitude), new GeoFire.CompletionListener() {
+                @Override
+                public void onComplete(String key, DatabaseError error) {
+                    if(lastMarker != null){
+                        lastMarker.remove();
+                    }
+
+                    lastMarker = mMap.addMarker(new MarkerOptions()
+                            .icon(BitmapDescriptorFactory.fromResource(android.R.drawable.star_on))
+                            .position(new LatLng(latitude, longitude)).title("You "));
+
+                    mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(latitude, longitude), 15.0f));
+                    rotateMarket(lastMarker, -360, mMap);
+                }
+            });
+        } else {
+            Log.d("ERROR", "Cannot get your location");
+        }
+    }
+
+    private void rotateMarket(final Marker lastMarker, float i, GoogleMap mMap) {
+
+        final Handler handler = new Handler();
+
+        final long start = SystemClock.uptimeMillis();
+        final float startRotation = lastMarker.getRotation();
+        final long duration = 1500;
+
+        final Interpolator interpolator = new LinearInterpolator();
+
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                long elapsed = SystemClock.uptimeMillis() - start;
+                float t = interpolator.getInterpolation((float)elapsed/duration);
+                float rot = t*i+(1-t)*startRotation;
+                lastMarker.setRotation(-rot >180 ? rot/2:rot);
+
+                if(t<1.0){
+                    handler.postDelayed(this, 16);
+                }
+            }
+        });
 
     }
 
@@ -152,6 +274,8 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
 
     @Override
     public void onLocationChanged(Location location) {
+        lastLocation = location;
+        displayLocation();
 
     }
 
@@ -172,12 +296,14 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
+        displayLocation();
+        startLocationUpdates();
 
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-
+        googleApiClient.connect();
     }
 
     @Override

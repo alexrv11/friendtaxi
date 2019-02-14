@@ -102,7 +102,7 @@ public class MainActivity extends AppCompatActivity {
                 dialogInterface.dismiss();
 
                 btnSignIn.setEnabled(false);
-
+                /*
 
                 if (TextUtils.isEmpty(editEMail.getText().toString())) {
                     Snackbar.make(rootLayout, "Please enter email address", Snackbar.LENGTH_SHORT).show();
@@ -133,7 +133,9 @@ public class MainActivity extends AppCompatActivity {
                         Snackbar.make(rootLayout, "Failure " + e.getMessage(), Snackbar.LENGTH_SHORT).show();
                         btnSignIn.setEnabled(true);
                     }
-                });
+                });*/
+
+                startActivity(new Intent(MainActivity.this, TaxiMapActivity.class));
 
             }
         }).setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
