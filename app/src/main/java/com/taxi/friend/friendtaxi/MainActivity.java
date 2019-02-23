@@ -56,6 +56,7 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         firebaseAuth = FirebaseAuth.getInstance();
+        FirebaseDatabase.getInstance().setPersistenceEnabled(true);
         db = FirebaseDatabase.getInstance();
         users = db.getReference("Users");
 
@@ -102,8 +103,8 @@ public class MainActivity extends AppCompatActivity {
                 dialogInterface.dismiss();
 
                 btnSignIn.setEnabled(false);
-                /*
 
+                /*
                 if (TextUtils.isEmpty(editEMail.getText().toString())) {
                     Snackbar.make(rootLayout, "Please enter email address", Snackbar.LENGTH_SHORT).show();
                     return;
@@ -112,13 +113,17 @@ public class MainActivity extends AppCompatActivity {
                 if (TextUtils.isEmpty(editPassword.getText().toString())) {
                     Snackbar.make(rootLayout, "Please enter your password", Snackbar.LENGTH_SHORT).show();
                     return;
-                }
+                }*/
 
+                String userName = editEMail.getText().toString();
+                String password = editPassword.getText().toString();
+                userName = "alex.rv11@gmail.com";
+                password = "Sus1ok29!";
 
                 final AlertDialog waitingDialog = new AlertDialog.Builder(MainActivity.this).create();
                 waitingDialog.show();
 
-                firebaseAuth.signInWithEmailAndPassword(editEMail.getText().toString(), editPassword.getText().toString())
+                firebaseAuth.signInWithEmailAndPassword(userName, password)
                         .addOnSuccessListener(new OnSuccessListener<AuthResult>() {
                             @Override
                             public void onSuccess(AuthResult authResult) {
@@ -133,7 +138,7 @@ public class MainActivity extends AppCompatActivity {
                         Snackbar.make(rootLayout, "Failure " + e.getMessage(), Snackbar.LENGTH_SHORT).show();
                         btnSignIn.setEnabled(true);
                     }
-                });*/
+                });
 
                 startActivity(new Intent(MainActivity.this, TaxiMapActivity.class));
 

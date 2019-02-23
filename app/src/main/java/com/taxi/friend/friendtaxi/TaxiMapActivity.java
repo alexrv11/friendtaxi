@@ -3,7 +3,7 @@ package com.taxi.friend.friendtaxi;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import android.location.LocationListener;
+import com.google.android.gms.location.LocationListener;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.support.annotation.NonNull;
@@ -31,7 +31,6 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
-import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
@@ -81,7 +80,7 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
 
@@ -108,7 +107,7 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
         drivers = FirebaseDatabase.getInstance().getReference("Drivers");
         geofire = new GeoFire(drivers);
         setUpLocation();
-
+        mapFragment.getMapAsync(this);
     }
 
     private void setUpLocation() {
@@ -174,7 +173,7 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
 
     private void startLocationUpdates() {
 
-        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+        /*if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
         {
             return;
@@ -191,7 +190,26 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
                             lastLocation = location;
                         }
                     }
-                });
+                });*/
+
+        String test1 = "google " + googleApiClient.isConnected();
+        Log.i("LocationTest", test1);
+        if (googleApiClient.isConnected()) {
+            Log.i("LocationTest", "test1");
+            LocationRequest locationRequest = LocationRequest.create()
+                    .setInterval(5000)
+                    .setFastestInterval(1000)
+                    .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+
+            LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, new LocationListener() {
+                @Override
+                public void onLocationChanged(Location location) {
+                    Log.i("LocationTest", "update");
+                    lastLocation = location;
+
+                }
+            });
+        }
 
     }
 
@@ -226,14 +244,14 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
         }
     }
 
-    private void rotateMarket(final Marker lastMarker, float i, GoogleMap mMap) {
+    private void rotateMarket(final Marker lastMarker, final float i, GoogleMap mMap) {
 
         final Handler handler = new Handler();
 
         final long start = SystemClock.uptimeMillis();
         final float startRotation = lastMarker.getRotation();
         final long duration = 1500;
-
+/*
         final Interpolator interpolator = new LinearInterpolator();
 
         handler.post(new Runnable() {
@@ -241,7 +259,7 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
             public void run() {
                 long elapsed = SystemClock.uptimeMillis() - start;
                 float t = interpolator.getInterpolation((float)elapsed/duration);
-                float rot = t*i+(1-t)*startRotation;
+                float rot = t * i + (1 - t)*startRotation;
                 lastMarker.setRotation(-rot >180 ? rot/2:rot);
 
                 if(t<1.0){
@@ -249,7 +267,7 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
                 }
             }
         });
-
+*/
     }
 
 
@@ -265,11 +283,6 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
-        // Add a marker in Sydney and move the camera
-        LatLng sydney = new LatLng(-34, 151);
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(sydney));
     }
 
     @Override
@@ -280,25 +293,25 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
     }
 
     @Override
-    public void onStatusChanged(String provider, int status, Bundle extras) {
-
-    }
-
-    @Override
-    public void onProviderEnabled(String provider) {
-
-    }
-
-    @Override
-    public void onProviderDisabled(String provider) {
-
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch (requestCode){
+            case MY_PERMISSION_REQUEST_CODE:
+                if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                    if(checkPlayPermission()){
+                        buildGoogleApiclient();
+                        createLocationRequest();
+                        if(isOnline){
+                            displayLocation();
+                        }
+                    }
+                }
+        }
     }
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
         displayLocation();
         startLocationUpdates();
-
     }
 
     @Override
