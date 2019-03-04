@@ -3,7 +3,7 @@ package com.taxi.friend.friendtaxi;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.location.Location;
-import com.google.android.gms.location.LocationListener;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.support.annotation.NonNull;
@@ -11,10 +11,7 @@ import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
-import android.os.Bundle;
 import android.util.Log;
-import android.view.animation.Interpolator;
-import android.view.animation.LinearInterpolator;
 import android.widget.CompoundButton;
 import android.widget.Switch;
 import android.widget.Toast;
@@ -25,7 +22,10 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -35,7 +35,6 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -56,6 +55,7 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
     private Location lastLocation;
+    private LocationCallback locationCallback;
 
     private static int UPDATE_INTERVAL = 5000;
     private static int FATEST_INTERVAL = 3000;
@@ -83,6 +83,19 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
 
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                if (locationResult == null) {
+                    return;
+                }
+                for (Location location : locationResult.getLocations()) {
+                    lastLocation = location;
+                    Log.i("LocationTest", "update");
+                }
+            };
+        };
 
         materialAnimatedSwitch = findViewById(R.id.location_switch);
 
@@ -162,53 +175,23 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
         return true;
     }
 
-    private void stopLocationUpdates() {
+    private void startLocationUpdates() {
 
         if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
         {
             return;
         }
-    }
 
-    private void startLocationUpdates() {
-
-        /*if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED)
-        {
-            return;
-        }
-
-        mFusedLocationClient.getLastLocation()
-                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                    @Override
-                    public void onSuccess(Location location) {
-                        // Got last known location. In some rare situations, this can be null.
-                        if (location != null && isOnline) {
-                            // Logic to handle location object
-                            Snackbar.make(mapFragment.getView(), "new location", Snackbar.LENGTH_SHORT).show();
-                            lastLocation = location;
-                        }
-                    }
-                });*/
-
-        String test1 = "google " + googleApiClient.isConnected();
-        Log.i("LocationTest", test1);
         if (googleApiClient.isConnected()) {
-            Log.i("LocationTest", "test1");
             LocationRequest locationRequest = LocationRequest.create()
                     .setInterval(5000)
                     .setFastestInterval(1000)
                     .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
-            LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, new LocationListener() {
-                @Override
-                public void onLocationChanged(Location location) {
-                    Log.i("LocationTest", "update");
-                    lastLocation = location;
 
-                }
-            });
+            mFusedLocationClient.requestLocationUpdates(locationRequest,
+                    locationCallback, null);
         }
 
     }
@@ -322,5 +305,15 @@ public class TaxiMapActivity extends FragmentActivity implements OnMapReadyCallb
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        stopLocationUpdates();
+    }
+
+    private void stopLocationUpdates() {
+        mFusedLocationClient.removeLocationUpdates(locationCallback);
     }
 }
